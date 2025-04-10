@@ -1,0 +1,218 @@
+import scipy
+import math
+
+# Assign the roman letter to its corresponding value
+I, V, X, L, C, D, M = (1, 5, 10, 50, 100, 500, 1000)
+
+# Assign the list of prohibited strings
+prohibited_inputs = ["IL", "IC", "ID", "IM", "VL", "VC", "VD", "VM", \
+                     "XD", "XM", "LC", "LD", "LM", "DM", "LL", "VV", \
+                     "DD", "IIII", "VVVV", "XXXX", "LLLL", "CCCC", "DDDD", "MMMM"]
+# Declare the allowed inputs 
+valid_inputs = "IVXLCDM"          
+
+# Get the first roman input from the user
+while True:
+    roman1 = input("Please enter the first roman input:") 
+    if any(letter in roman1 for letter in valid_inputs):
+        if any(letter not in valid_inputs for letter in roman1):
+            print("Please only enter Roman Numerals")
+        elif any(string in roman1 for string in prohibited_inputs):
+            print("Please enter a valid Roman Numeral")
+        else:
+            break
+    else:
+        print("Please enter a Roman Numeral(s)")
+
+# Get the operator from the user
+while True:
+    valid_inputs_Operator = ["+", "-", "*", "/", "%", "SQ", "SQRT", "POWER", "FACTORIAL"]
+    operator = input("Please enter one of the following operators: +, -, *, /, %, SQ, SQRT, POWER, FACTORIAL")
+    if operator in valid_inputs_Operator:
+        break
+    else:
+        print("Please enter a valid_inputs operator")
+        
+# Get the second roman input from the user
+while operator != "SQ" and operator != "SQRT" and operator != "FACTORIAL":
+    roman2 = input("Please enter the second roman input:")
+    if any(letter in roman2 for letter in valid_inputs):
+        if any(letter not in valid_inputs for letter in roman2):
+            print("Please only enter Roman Numerals")
+        elif any(string in roman2 for string in prohibited_inputs):
+            print("Please enter a valid Roman Numeral")
+        else:
+            break
+    else:
+        print("Please enter a Roman Numeral(s)")
+
+
+# This function converts the first roman input to its numeral value
+def roman_to_num(roman1):
+    x = 0
+    Current = globals()[roman1[x]]
+    for x in range(len(roman1) - 1):
+        Next = globals()[roman1[x + 1]]
+        if Next > Current:
+            if (Next == V or Next == X) and Current == I:
+                Current = Next - Current
+            elif (Next == L or Next == C) and Current == X:
+                Current = Next - Current    # X or L
+            elif (Next == M or Next == D) and Current == C:
+                Current = Next - Current         # C or D
+        else:
+            Current = Next + Current
+    return Current
+
+number1 = roman_to_num(roman1)
+
+# This function converts the second roman input to its numeral value
+def roman_to_num(roman2):
+    x = 0
+    Current = globals()[roman2[x]]
+    for x in range(len(roman2) - 1):
+        Next = globals()[roman2[x + 1]]
+        if Next > Current:
+            if (Next == V or Next == X) and Current == I:
+                Current = Next - Current
+            elif (Next == L or Next == C) and Current == X:
+                Current = Next - Current    # X or L
+            elif (Next == M or Next == D) and Current == C:
+                Current = Next - Current         # C or D
+        else:
+            Current = Next + Current
+    return Current
+
+if operator != "SQ" and operator != "SQRT" and operator != "FACTORIAL":
+    number2 = roman_to_num(roman2)
+
+# This function adds the two roman inputs
+def add_roman(roman1, roman2):
+    return number1 + number2
+
+# This function subtracts the two roman inputs
+def subtract_roman(roman1, roman2):
+    return number1 - number2
+    
+# This function multiplies the two roman inputs
+def multiply_roman(roman1, roman2):
+    return number1 * number2
+    
+# This function divides the two roman inputs
+def divide_roman(roman1, roman2):
+    return number1 / number2
+
+# This function calculates the remainder
+def remainder_roman(roman1, roman2):
+    return number1 % number2
+
+# This function calculates the square of the first roman input
+def square_roman(roman1):
+    return number1 * number1
+    
+# This function calculates the square root of the first roman input
+def sqrt_roman(roman1):
+    return number1 ** 0.5
+    
+# This function calculates the first roman input to the power of the second roman input 
+def power_roman(roman1):
+    return number1 ** number2
+    
+# This function calculates the factorial of the first roman input
+def factorial_roman(roman1):
+    return math.factorial(number1)
+
+# This function performs the arithmetic operations and returns the result
+def arithmetic(operator):
+    if operator == "+":
+        return add_roman(roman1, roman2)
+    elif operator == "-":
+        return subtract_roman(roman1, roman2)
+    elif operator == "*":
+        return multiply_roman(roman1, roman2)
+    elif operator == "/":
+        return divide_roman(roman1, roman2)
+    elif operator == "%":
+        return remainder_roman(roman1, roman2)
+    elif operator == "SQ":
+        return square_roman(roman1)
+    elif operator == "SQRT":
+        return sqrt_roman(roman1)    
+    elif operator == "POWER":
+        return power_roman(roman1)    
+    elif operator == "FACTORIAL":
+        return factorial_roman(roman1)
+
+# Assign a variable name to the arithmetic function for simplicity
+result_in_numeral = arithmetic(operator)                
+
+# Convert the result back to a Roman Value using a roman dictionary
+def num_to_roman(result_in_numeral):
+    
+    if result_in_numeral == 0:
+        # Nulla means nothing or "0" in roman numerals
+        print("Nulla") 
+        return False
+    else:
+        # Create a blank output then add the Roman letters into it by subtracting the previous result until it becomes zero
+        output = []
+        # Create a dictionary of the roman letters and their corresponding value
+        roman_dictionary = {1000: "M",
+                            500: "D",
+                            100: "C",
+                            50: "L",
+                            10: "X",
+                            5: "V",
+                            1: "I"
+                           }
+        while result_in_numeral != 0:
+            if result_in_numeral >= 1000:
+                result_in_numeral = result_in_numeral - 1000
+                output.append(roman_dictionary[1000])
+            elif result_in_numeral >= 500:
+                result_in_numeral = result_in_numeral - 500
+                output.append(roman_dictionary[500])
+            elif result_in_numeral >= 100:
+                result_in_numeral = result_in_numeral - 100
+                output.append(roman_dictionary[100])
+            elif result_in_numeral >= 50:
+                result_in_numeral = result_in_numeral - 50
+                output.append(roman_dictionary[50])
+            elif result_in_numeral >= 10:
+                result_in_numeral = result_in_numeral - 10
+                output.append(roman_dictionary[10])
+            elif result_in_numeral >= 5:
+                result_in_numeral = result_in_numeral - 5
+                output.append(roman_dictionary[5])
+            elif result_in_numeral >= 1:
+                result_in_numeral = result_in_numeral - 1
+                output.append(roman_dictionary[1])
+        return "".join(output) 
+        
+# Assign a variable name to the num_to_roman function for simplicity
+result_in_roman = num_to_roman(result_in_numeral)
+result_in_roman
+
+# This function replaces invalid outputs and prevents the corresponding repetition of any letter more than 3 times
+def replace_invalids(result_in_roman):
+    if result_in_roman == 0:
+        return False
+    else:
+        replace = [("MMMMM", "V̅"), ("V̅V̅", "X̅"), ("X̅X̅X̅X̅X̅", "L̅"), ("L̅L̅", "C̅"), \
+                   ("C̅C̅C̅C̅C̅", "D̅"), ("D̅D̅", "M̅"), ("MMMM", "IV̅"), ("DDDD", "MM"), \
+                   ("CCCC", "CD"), ("LLLL", "CC"), ("XXXX", "XL"), ("VVVV", "XX"), \
+                   ("IIII", "IV"), ("VIV", "IX"), ("LXL", "CX"), ("DCD", "MC"), ("MDM", "MD")]
+        for first, second in replace:
+            result_in_roman = result_in_roman.replace(first, second)
+        return result_in_roman
+
+# This function prints the result of the calculation except when the value is 0 as it does not exist in roman numerals
+def final_result(result_in_roman):
+    if result_in_roman == 0:
+        return False
+    else:
+        final_answer = replace_invalids(result_in_roman)
+        print(final_answer)
+
+# Start the function to print the final result        
+final_result(result_in_roman)
