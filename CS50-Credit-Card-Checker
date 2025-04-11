@@ -1,0 +1,145 @@
+#include <cs50.h>
+#include <stdio.h>
+
+int checksum16(long n);
+int checksum15(long n);
+int checksum13(long n);
+int count(long n);
+int first_AME(long n);
+int first_MAS(long n);
+int first_VISA(long n);
+int second(long n);
+
+int main(void)
+{
+    int i, c;
+    long n;
+
+    // Prompt user for credit card number
+    do
+    {
+        n = get_long("Number: ");
+    }
+    while (n < 0);
+
+    // Check for card lengths and starting digits
+
+    // Print credit card type
+    if (count(n) == 15)
+    {
+        if (((checksum15(n) % 10) == 0) && ((first_AME(n) == 34) || (first_AME(n) == 37)))
+        {
+            printf("AMEX\n");
+        }
+        else if ((checksum15(n) % 10) != 0)
+        {
+            printf("INVALID\n");
+        }
+    }
+    else if (count(n) == 16)
+    {
+
+        if ((checksum16(n) % 10 == 0) && (second(n) == 4))
+        {
+            printf("VISA\n");
+        }
+        else if ((first_MAS(n) == 51) || (first_MAS(n) == 52) || (first_MAS(n) == 53) ||
+                 (first_MAS(n) == 54) || (first_MAS(n) == 55))
+        {
+            printf("MASTERCARD\n");
+        }
+
+        else if (checksum16(n) % 10 != 0)
+        {
+            printf("INVALID\n");
+        }
+    }
+    else if (count(n) == 13)
+    {
+        if (checksum13(n) % 10 != 0)
+        {
+            printf("INVALID\n");
+        }
+        else if (first_VISA(n) == 4)
+        {
+            printf("VISA\n");
+        }
+    }
+    else
+    {
+        printf("INVALID\n");
+    }
+}
+
+int checksum16(long n)
+{
+    // Calculate the checksum
+    int x;
+    int y;
+    int z;
+    x = 2 * ((n % 100) + (n % 10000) + (n % 1000000) + (n % 100000000) + (n % 10000000000) +
+             (n % 1000000000000) + (n % 100000000000000) + (n % 10000000000000000));
+    y = (n % 10) + (n % 1000) + (n % 100000) + (n % 10000000) + (n % 1000000000) +
+        (n % 100000000000) + (n % 10000000000000) + (n % 1000000000000000);
+    return z = x + y;
+}
+
+int checksum15(long n)
+{
+    // Calculate the checksum
+    int x;
+    int y;
+    int z;
+    x = 2 * ((n % 100) + (n % 10000) + (n % 1000000) + (n % 100000000) + (n % 10000000000) +
+             (n % 1000000000000) + (n % 100000000000000) + (n % 10000000000000000));
+    y = (n % 10) + (n % 1000) + (n % 100000) + (n % 10000000) + (n % 1000000000) +
+        (n % 100000000000) + (n % 10000000000000) + (n % 1000000000000000);
+    return z = x + y;
+}
+
+int checksum13(long n)
+{
+    // Calculate the checksum
+    int x;
+    int y;
+    int z;
+    x = 2 * ((n % 100) + (n % 10000) + (n % 1000000) + (n % 100000000) + (n % 10000000000) +
+             (n % 1000000000000));
+    y = (n % 10) + (n % 1000) + (n % 100000) + (n % 10000000) + (n % 1000000000) +
+        (n % 100000000000) + (n % 10000000000000);
+    return z = x + y;
+}
+
+int count(long n)
+{
+    int i;
+    for (i = 0; n > 0; i++)
+    {
+        n = n / 10;
+    }
+    return i;
+}
+
+int first_AME(long n)
+{
+    int AME = n / 10000000000000;
+    return AME;
+}
+
+int first_MAS(long n)
+{
+    int MAS = n / 100000000000000;
+    return MAS;
+}
+
+int first_VISA(long n)
+{
+    int VISA = n / 1000000000000;
+    return VISA;
+}
+
+int second(long n)
+{
+    int VISA2 = n / 1000000000000000;
+    return VISA2;
+}
