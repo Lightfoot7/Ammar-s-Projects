@@ -1,0 +1,226 @@
+#include "mbed.h"
+#include "TextLCD.h"
+#include "Timer.h"
+#define max7219_reg_noop         0x00
+#define max7219_reg_digit0       0x01
+#define max7219_reg_digit1       0x02
+#define max7219_reg_digit2       0x03
+#define max7219_reg_digit3       0x04
+#define max7219_reg_digit4       0x05
+#define max7219_reg_digit5       0x06
+#define max7219_reg_digit6       0x07
+#define max7219_reg_digit7       0x08
+#define max7219_reg_decodeMode   0x09
+#define max7219_reg_intensity    0x0a
+#define max7219_reg_scanLimit    0x0b
+#define max7219_reg_shutdown     0x0c
+#define max7219_reg_displayTest  0x0f
+#define LOW 0
+#define HIGH 1
+#include "cmsis_os2.h"  // Include CMSIS RTOS header for reset functionality
+
+AnalogIn analog_input(p17);             // Read the unfiltered analog data form the analog pin on the MCU
+AnalogOut digital_output(p18);         // Read the filtered, averaged, and 8 leveled digital output ;)
+TextLCD lcd(p26, p25, p24, p23, p22, p21, TextLCD::LCD16x2);
+
+// Initialise the digital pin LED1 as an output
+DigitalOut led1(LED1);
+DigitalOut led2(LED2);
+DigitalOut led3(LED3);
+DigitalOut led4(LED4);
+
+int input_index = 0;            
+int OnePulseMan = 0;
+float index[5]; 
+float rolling_avg = 0.0;                                // Create an array od the values that will be averaged
+float Yi_1 = 0.0;     // initalsie it to the first value
+float alpha = 0.4;
+float Period = 0.0;
+float BLINKING_RATE = 0;
+int Peak_1 = 0, Peak_2 = 0; 
+float HighThreshold = 3.0; 
+float LowThreshold  = 1.1; 
+int BPM = 0;
+
+int Final_Value = 0;
+float Max_input = 0.515, Min_input = 0.485;         // Th input goes from 0.475 to 0.525 which we need to scale it to be larger to go from 0 to 1
+Timer timer;           // Create a timer object
+
+void Period_Measure()
+{
+    if(Final_Value > HighThreshold && Peak_1 == 0){
+        Peak_1 = 1;       // capture start time 
+        timer.start();       // capture start time 
+        
+        led1 = !led1;                                       // Turn on the mbed LED
+        led2 = !led2;
+        led3 = !led3;
+        led4 = !led4;
+       
+
+        led1 = !led1;                                       // Turn off the mbed LED
+        led2 = !led2;
+        led3 = !led3;
+        led4 = !led4;
+
+
+    }
+
+    if(Final_Value < LowThreshold  && Peak_1 != 0){Peak_1 = 2;}        // If the pulse passes Lowthreshold after passing  HighThreshold, then Set Peak_2 to 2 to allow the detection of the 2nd Highthreshold
+    if(Final_Value > HighThreshold && Peak_1 == 2 && Peak_2 == 0){     // If the pulse passes the HighThreshold again after passing it once and passing LowThreshold, only then the period is complete              
+        Peak_1 = 1;                   // Set Peak_1 back to 1 to prevent a pulse detection twice                                    
+        Peak_2 = 1;                   // Set Peak_1 back to 1 to prevent a pulse detection twice     
+        Period = timer.elapsed_time().count() / 1000000.0;       // capture end time 
+        timer.stop();           // Stop timer to complete the period cycle
+        timer.reset();       // Reset timer to get ready for the next period
+    }
+}
+
+SPI max72_spi(p5, NC, p7);
+//SPI max72_spi(PTD2, NC, PTD1);
+DigitalOut load(p8); //will provide the load signal
+//DigitalOut load(PTD0); //will provide the load signal
+//DigitalOut LEDout(LED1); //will provide the load signal
+BufferedSerial serial(USBTX, USBRX ,115200);
+char  pattern_onepulseman[8];
+/*Write to the maxim via SPI
+args register and the column data*/
+void write_to_max(int reg, int col)
+{
+    load = LOW;            // begin
+    max72_spi.write(reg);  // specify register
+    max72_spi.write(col);  // put data
+    load = HIGH;           // make sure data is loaded (on rising edge of LOAD/CS)
+    //pc.printf("Writing\n");
+}
+
+//writes 8 bytes to the display  
+void pattern_to_display(char *testdata){
+    int cdata;
+    for(int idx = 0; idx <= 7; idx++) {
+        cdata = testdata[idx];
+        write_to_max(idx+1,cdata);
+    }
+}
+ 
+
+void setup_dot_matrix ()
+{
+    // initiation of the max 7219
+    // SPI setup: 8 bits, mode 0
+    max72_spi.format(8, 0);
+     
+ 
+ 
+    max72_spi.frequency(100000); //down to 100khx easier to scope ;-)
+     
+
+    write_to_max(max7219_reg_scanLimit, 0x07);
+    write_to_max(max7219_reg_decodeMode, 0x00);  // using an led matrix (not digits)
+    write_to_max(max7219_reg_shutdown, 0x01);    // not in shutdown mode
+    write_to_max(max7219_reg_displayTest, 0x00); // no display test
+    for (int e=1; e<=8; e++) {    // empty registers, turn all LEDs off
+        write_to_max(e,0);
+    }
+   // maxAll(max7219_reg_intensity, 0x0f & 0x0f);    // the first 0x0f is the value you can set
+     write_to_max(max7219_reg_intensity,  0x08);    
+ 
+}
+
+void clear(){
+     for (int e=1; e<=8; e++) {    // empty registers, turn all LEDs off
+        write_to_max(e,0);
+    }
+}
+void shiftArray() {
+    for (int i = 0; i < 8; ++i) {
+        pattern_onepulseman[i] >>= 1;
+    }
+    pattern_to_display(pattern_onepulseman);
+}
+
+
+int main()
+{
+    while (true) {
+
+        float unfiltered_input = analog_input.read(); //.read  gives a value berween 0.0 and 1.0 so multiplying by 4095 will give a value between 0 and 4095 cuz 12 bit ADC cuz 2 power 12 is 4096
+
+        // Scale the input to a range of values from 0.0 to 1.0
+        unfiltered_input = (unfiltered_input - Min_input)/(Max_input - Min_input);          
+
+        // Apply the filter equation
+        float filtered_output = (alpha * unfiltered_input) + (1 - alpha) * Yi_1;
+        Yi_1 = filtered_output;                   // Assigning previous output to new output
+
+        // Apply the rolling average
+        index[input_index] = filtered_output;         // Assign the data to the array
+        input_index = (input_index + 1) % 5;          // Go to the next value in the array and make sure it loops back to 0 so it doesn't give a bound error
+
+        rolling_avg = 0.0;
+        for(int i = 0; i < 5; i++) {                  // Add up the last 5 samples
+            rolling_avg = rolling_avg + index[i];
+        }
+        float final_rolling_avg = rolling_avg / 5.0;      // Calculate the average
+
+        Final_Value = round(final_rolling_avg * 7.0); // Assuming the input range is [0, 1]
+
+
+        if(Final_Value > 7) {Final_Value = 7;}     //Ensure the digital pulse doesnt exceed the maximum value
+        if(Final_Value < 0) {Final_Value = 0;}     //Ensure the digital pulse doesnt go below the minimum value
+            
+        Period_Measure();
+  
+        if(Period > 0.0){BPM = 60.0/Period;}                  // The Beats per minute is 60 divided by the difference in time between the peaks
+
+        lcd.printf("BPM: %d\n", BPM);                        // Print the BPM on the LCD
+        lcd.printf("Period: %d\n", (int)(Period * 1000)); 
+
+        // Update the digital output level
+        digital_output.write(Final_Value / 7.0);            //DIVIDE INTO 8 LEVELS 
+
+        if(Peak_1 != 0 && Peak_2 != 0){Peak_1 = 0; Peak_2 = 0;}      // If both peaks are detected then reset them to get ready for the new cycle
+         
+        if(digital_output < 0.142857142857){
+            pattern_onepulseman[0] = 0x81;
+        }
+        if(digital_output > 0.142857142857 && digital_output < 0.285714285714){
+            pattern_onepulseman[1] = 0x80;
+        }
+        if(digital_output > 0.285714285714 && digital_output < 0.4285714286){
+            pattern_onepulseman[2] = 0x80;
+        }
+        if(digital_output > 0.4285714286 && digital_output < 0.5714285714){
+            pattern_onepulseman[3] = 0x80;
+        }
+        if(digital_output > 0.5714285714 && digital_output < 0.7142857143){
+            pattern_onepulseman[4] = 0x80;
+        }
+        if(digital_output > 0.7142857143 && digital_output < 0.8571428571){
+            pattern_onepulseman[5] = 0x80;
+        }
+        if(digital_output > 0.8571428571 && digital_output < 0.9){
+            pattern_onepulseman[6] = 0x80;
+        }
+        if(digital_output > 0.9){
+            pattern_onepulseman[7] = 0x80;
+            for (int e=1; e<=8; e++) {                           // empty registers, turn all LEDs off
+                pattern_onepulseman[input_index] = 0x00;      
+            }         
+        }
+
+        if(Peak_1 != 0 && Peak_2 != 0) {
+            Peak_1 = 0; Peak_2 = 0;
+           
+            led1 = 0;                                       // Turn on the mbed LED
+            led2 = 0;                                       // Turn on the mbed LED
+            led3 = 0;                                       // Turn on the mbed LED
+            led4 = 0;                                       // Turn on the mbed LED
+        }      // If both peaks are detected then reset them to get ready for the new cycle
+        
+        pattern_to_display(pattern_onepulseman);
+        thread_sleep_for(20);
+        shiftArray();
+    }
+    
+}
